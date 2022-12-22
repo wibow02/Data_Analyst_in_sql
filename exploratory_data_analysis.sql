@@ -27,12 +27,12 @@ HAVING COUNT(tag)>1
 -- What is the most common stackoverflow tag_type?
 -- Count the number of tags with each type
 SELECT type, count(tag) AS count
-  FROM tag_type
+FROM tag_type
  -- To get the count for each type, what do you need to do?
-group by type
+GROUP BY type
  -- Order the results with the most common
  -- tag types listed first
-  order by count desc;
+ORDER BY COUNT DESC;
 
 -- What companies have a tag of that type?
 -- Read an entity relationship diagramp
@@ -53,16 +53,16 @@ WHERE type='cloud';
 SELECT coalesce(industry, sector, 'Unknown') AS industry2,
        -- Don't forget to count!
        count(*) 
- FROM fortune500 
- GROUP BY industry2
+FROM fortune500 
+GROUP BY industry2
 -- Order results to see most common first
- order by count desc
+ORDER BY COUNT DESC
 -- Limit results to get just the one value you want
- limit 3;
+LIMIT 3;
  
 SELECT company_original.name, title, rank
   -- Start with original company information
-  FROM company AS company_original
+FROM company AS company_original
        -- Join to another copy of company with parent
        -- company information
 	   LEFT JOIN company AS company_parent
@@ -84,10 +84,10 @@ SELECT company_original.name, title, rank
 SELECT sector, 
        avg(revenues/employees::numeric) AS avg_rev_employee
 -- 	   Compute revenue per employee by dividing revenues by employees
-  FROM fortune500
- GROUP BY sector
+FROM fortune500
+GROUP BY sector
  -- Use the column alias to order the results
- ORDER BY avg_rev_employee;
+ORDER BY avg_rev_employee;
  
  -- Select min, avg, max, and stddev of fortune500 profits
 SELECT min(profits),
@@ -95,9 +95,7 @@ SELECT min(profits),
        max(profits),
        stddev(profits)
 FROM fortune500;
-  
-ry 
- 
+   
  -- Select sector and summary measures of fortune500 profits
 SELECT min(profits),
        avg(profits),
@@ -129,13 +127,13 @@ GROUP BY tag) AS max_results; -- alias for subquery
 SELECT trunc(employees, -4) AS employee_bin,
        -- Count number of companies with each truncated value
        count(*)
-  FROM fortune500
+FROM fortune500
  -- Limit to which companies?
- WHERE employees < 100000
+WHERE employees < 100000
  -- Use alias to group
- GROUP BY employee_bin
+GROUP BY employee_bin
  -- Use alias to order
- ORDER BY employee_bin;
+ORDER BY employee_bin;
  
  -- Correlation between revenues and profit
 SELECT  corr(revenues,profits)AS rev_profits,
@@ -171,9 +169,9 @@ SELECT sector,
 -- find the 80th percentile of profit for each sector
          percentile_disc(0.8) within group (order by profits) AS pct80
 -- What table are you getting the data from?
-from fortune500
+FROM fortune500
 -- What do you need to group by?
-group by sector;
+GROUP BY sector;
 
 -- select companies that have profits greater than pct80
 -- Select columns, aliasing as needed
@@ -185,18 +183,13 @@ LEFT JOIN profit80
 -- How are the tables joined?
 ON fortune500.sector=profit80.sector
 -- What rows do you want to select?
-WHERE profits > pct80;
-
-   
+WHERE profits > pct80;   
 -- See what you created: select all columns and rows 
 -- from the table you created
 SELECT * FROM profit80;
 
-
-
 -- To clear table if it already exists
 DROP TABLE IF EXISTS startdates;
-
 -- Create temp table syntax
 CREATE TEMP TABLE stardates AS
 -- find the starting date for all tag
@@ -368,37 +361,34 @@ FROM recode
 WHERE standardized LIKE 'Trash%Cart'
 OR standardized LIKE 'Snow%Removal%';
 
-
-
-
 -- join the evanston311 and recode tables to count the number of
 -- requests with each of the standardized values
 -- Code from previous step
 DROP TABLE IF EXISTS recode;
 CREATE TEMP TABLE recode AS
-  SELECT DISTINCT category, 
+SELECT DISTINCT category, 
          rtrim(split_part(category, '-', 1)) AS standardized
-  FROM evanston311;
+FROM evanston311;
 UPDATE recode SET standardized='Trash Cart' 
- WHERE standardized LIKE 'Trash%Cart';
+WHERE standardized LIKE 'Trash%Cart';
 UPDATE recode SET standardized='Snow Removal' 
- WHERE standardized LIKE 'Snow%Removal%';
+WHERE standardized LIKE 'Snow%Removal%';
 UPDATE recode SET standardized='UNUSED' 
- WHERE standardized IN ('THIS REQUEST IS INACTIVE...Trash Cart', 
+WHERE standardized IN ('THIS REQUEST IS INACTIVE...Trash Cart', 
                '(DO NOT USE) Water Bill',
                'DO NOT USE Trash', 'NO LONGER IN USE');
 
 -- Select the recoded categories and the count of each
 SELECT standardized, count(*)
 -- From the original table and table with recoded values
-  FROM evanston311
+FROM evanston311
        left JOIN recode 
        -- What column do they have in common?
        ON evanston311.category=recode.category
         -- What do you need to group by to count?
- GROUP BY standardized
+GROUP BY standardized
  -- Display the most common val values first
- ORDER By count desc;
+ORDER By count desc;
 
 
 -- Create a table with indicator variables
@@ -416,17 +406,17 @@ FROM evanston311;
 
 -- Inspect the contents of the new temp table
 SELECT *
-  FROM indicators;
+FROM indicators;
   
 -- To clear table if it already exists
 DROP TABLE IF EXISTS indicators;
 
 -- Create the temp table
 CREATE TEMP TABLE indicators AS
-  SELECT id, 
+SELECT id, 
          CAST (description LIKE '%@%' AS integer) AS email,
          CAST (description LIKE '%___-___-____%' AS integer) AS phone 
-    FROM evanston311;
+FROM evanston311;
   
 -- Select the column you'll group by
 SELECT priority,
@@ -440,3 +430,150 @@ LEFT JOIN indicators
 ON evanston311.id = indicators.id
  -- What are you grouping by?
 GROUP BY priority;
+
+-- Working with dates and timestamps
+-- Date comparisons
+SELECT count(*) 
+FROM evanston311
+WHERE date_created = '2018-01-02';
+-- returns 0, even though there were 49 requests on January 2, 2018.
+-- This is because dates are automatically converted to timestamps
+-- when compared to a timestamp. The time fields are all set to zero
+
+-- Count requests created on January 31, 2017
+SELECT count(*) 
+FROM evanston311
+WHERE date_created::date ='2017-1-31';
+
+-- Count requests created on February 29, 2016
+SELECT count(*)
+FROM evanston311 
+WHERE date_created >= '2016-02-29' 
+AND date_created < '2016-03-01';
+
+-- Count requests created on March 13, 2017
+SELECT count(*)
+FROM evanston311
+WHERE date_created >= '2017-03-13'
+AND date_created < '2017-03-13'::date + 1;
+
+-- Date arithmetic
+-- You can subtract dates or timestamps from each other.
+-- You can add time to dates or timestamps using intervals.
+-- An interval is specified with a number of units and
+-- the name of a datetime field. For example:'3 days'::interval
+-- '6 months'::interval
+
+-- Subtract the min date_created from the max
+SELECT MAX(date_created) - MIN(date_created)
+FROM evanston311;
+
+-- How old is the most recent request?
+SELECT NOW()-MAX(date_created)
+FROM evanston311;
+
+-- Add 100 days to the current timestamp
+SELECT now() + '100 days'::interval;
+
+-- Select the current timestamp, 
+-- and the current timestamp + 5 minutes
+SELECT now() + '5 minutes'::interval;
+
+
+-- Completion time by category
+-- Which category of Evanston 311 requests takes the longest to complete?
+-- Select the category and the average completion time by category
+SELECT category, 
+       AVG(date_completed - date_created) AS completion_time
+FROM evanston311
+GROUP BY category
+-- Order the results
+ORDER BY completion_time DESC;
+
+-- The date_part() function is useful when you wantto aggregate
+-- data by a unit of timeacross multiple larger units of time
+-- For example, aggregating data by month across different years
+-- or aggregating by hour across different days
+
+-- How many requests are created in each of the 12 months during 2016-2017?
+-- Extract the month from date_created and count requests
+SELECT date_part('month', date_created) AS month, 
+       count(*)
+FROM evanston311
+ -- Limit the date range
+WHERE date_created >= '2016-01-01'
+AND date_created < '2018-01-01'
+ -- Group by what to get monthly counts?
+GROUP BY month;
+
+-- What is the most common hour of the day for requests to be created?
+-- Get the hour and count requests
+SELECT date_part('hour', date_created) AS hour,
+       count(*)
+FROM evanston311
+GROUP BY hour
+ -- Order results to select most common
+ORDER BY count DESC
+LIMIT 1;
+
+-- During what hours are requests usually completed?
+-- Count requests completed by hour
+SELECT date_part('hour', date_completed) AS hour,
+       count(*)
+FROM evanston311
+GROUP BY hour
+ORDER BY count DESC;
+
+-- Variation by day of week
+-- Does the time required to complete a request vary
+-- by the day of the week on which the request was created?
+-- We can get the name of the day of the week by converting a
+-- timestamp to character data
+-- Select name of the day of the week the request was created 
+SELECT to_char(date_created, 'day') AS day, 
+       -- Select avg time between request creation and completion
+       avg(date_completed - date_created) AS duration
+FROM evanston311 
+ -- Group by the name of the day of the week and 
+ -- integer value of day of week the request was created
+GROUP BY day, EXTRACT(DOW FROM date_created)
+ -- Order by integer value of the day of the week 
+ -- the request was created
+ORDER BY EXTRACT(DOW FROM date_created);
+
+-- Using date_trunc(), find the average number of Evanston 311
+-- requests created per day for each month of the data
+-- Aggregate daily counts by month
+SELECT date_trunc('month',day) AS month,
+       avg(count)
+  -- Subquery to count the number of requests created per day.
+FROM (SELECT date_trunc('day',date_created) AS day,
+               count(*) AS count
+		FROM evanston311
+        GROUP BY day) AS daily_count
+GROUP BY month
+ORDER BY month;
+
+-- Find missing dates
+-- The generate_series() function can be usefulfor identifying
+-- missing dates generate_series(from, to, interval)
+-- Are there any days in the Evanston 311 data where no requests were created?
+
+SELECT day
+-- 1) Subquery to generate all dates
+-- from min to max date_created
+FROM (SELECT generate_series(min(date_created),
+                               max(date_created),
+                               '1 day')::date AS day
+          -- What table is date_created in?
+       FROM evanston311) AS all_dates
+-- 4) Select dates (day from above) that are NOT IN the subquery
+WHERE day NOT IN 
+       -- 2) Subquery to select all date_created values as dates
+       (SELECT date_created::date
+        FROM evanston311);
+
+
+
+
+
